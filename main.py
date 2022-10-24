@@ -7,10 +7,10 @@
 # get into AI/Analysis on if the game is balanced
 
 import random
-import os
 
 # Once 3 goods become sold out the game is over
-SOLD_OUT_GOODS = 0
+SOLD_OUT_GOODS = set()
+
 
 # Create Deck
 def make_deck():
@@ -106,6 +106,7 @@ class Player:
 		self.points = points
 		self.seal_excellence = 0
 		self.num_non_camel_cards = 0
+		self.actions = []
 
 
 # Deal Initial Hand
@@ -114,10 +115,14 @@ def deal_hand(deck, p1, p2):
 	for i in range(5):
 		if deck[0] == "Camel":
 			p1.hand.append(deck.pop(0))
-			p2.hand.append(deck.pop(0))
 		else:
 			p1.hand.append(deck.pop(0))
 			p1.num_non_camel_cards += 1
+
+	for i in range(5):
+		if deck[0] == "Camel":
+			p2.hand.append(deck.pop(0))
+		else:
 			p2.hand.append(deck.pop(0))
 			p2.num_non_camel_cards += 1
 
@@ -146,16 +151,26 @@ def display_tokens(tokens):
 	spice = ', '.join(map(str, tokens["Spice"]))
 	cloth = ', '.join(map(str, tokens["Cloth"]))
 	leather = ', '.join(map(str, tokens["Leather"]))
-	print(" There are " + diamond + " diamond goods tokens left")
-	print(" There are " + gold + " gold goods tokens left")
-	print(" There are " + silver + " silver goods tokens left")
-	print(" There are " + spice + " spice goods tokens left")
-	print(" There are " + cloth + " cloth goods tokens left")
-	print(" There are " + leather + " leather goods tokens left")
+	print("There are " + diamond + " diamond goods tokens left")
+	print("There are " + gold + " gold goods tokens left")
+	print("There are " + silver + " silver goods tokens left")
+	print("There are " + spice + " spice goods tokens left")
+	print("There are " + cloth + " cloth goods tokens left")
+	print("There are " + leather + " leather goods tokens left")
 
 
 # Turn Mechanism
-def display_options(player, market, deck, tokens):
+def display_options(player, market, deck, tokens, opponent=None):
+	print()
+	print(player.name + "'s Turn!")
+	if opponent is not None:
+		print()
+		print(opponent.actions[-1])
+	print()
+	print("The market is " + ', '.join(map(str, market)))
+	print()
+	print("Your hand is " + ', '.join(map(str, player.hand)))
+	print()
 	print("Enter:")
 	print("1 to take goods")
 	print("2 to sell goods")
@@ -163,11 +178,6 @@ def display_options(player, market, deck, tokens):
 	print("4 to view your hand")
 	print("5 to view the market")
 	print("6 for help")
-	print()
-	print("The market is " + ', '.join(map(str, market)))
-	print()
-	print("Your hand is " + ', '.join(map(str, player.hand)))
-	print()
 	answer = input()
 	if answer == "1":
 		take_cards(player, market, deck, tokens)
@@ -175,6 +185,7 @@ def display_options(player, market, deck, tokens):
 		sell_cards(player, tokens)
 	elif answer == "3":
 		display_tokens(tokens)
+		display_options(player, market, deck, tokens)
 	elif answer == "4":
 		print("Your hand is " + ', '.join(map(str, player.hand)))
 		print()
@@ -191,29 +202,32 @@ def display_options(player, market, deck, tokens):
 		print()
 		display_options(player, market, deck, tokens)
 	else:
-		print("Please enter 1 or 2")
-		display_options(player, market, deck)
+		print("Please enter 1, 2, 3, 4, 5, or 6")
+		display_options(player, market, deck, tokens)
 
 
 # Take Goods
 def take_cards(player, market, deck, tokens):
+	print("PLAYER " + player.name + " HAS: " + str(player.num_non_camel_cards))
 	print("Enter:")
-	print("1 to take several goods")
-	print("2 to take a single good")
+	print("1 to take a single good")
+	print("2 to exchange several goods")
 	print("3 to take camels")
 	answer = input()
 	if answer == "1":
 		if player.num_non_camel_cards > 6:
-			print("You can only have 7 cards in your end")
-			display_options(player, market, deck, tokens)
-		else:
-			take_several_goods(player, market, deck)
-	elif answer == "2":
-		if player.num_non_camel_cards > 6:
+			print()
 			print("You can only have 7 cards in your end")
 			display_options(player, market, deck, tokens)
 		else:
 			take_single_good(player, market, deck)
+	elif answer == "2":
+		if player.num_non_camel_cards > 6:
+			print()
+			print("You can only have 7 cards in your end")
+			display_options(player, market, deck, tokens)
+		else:
+			take_several_goods(player, market, deck)
 	elif answer == "3":
 		take_camels(player, market, deck)
 	else:
@@ -222,9 +236,11 @@ def take_cards(player, market, deck, tokens):
 
 
 def take_several_goods(player, market, deck):
-	cards_given_up = set()
+	cards_given_up = []
 	card_number_given = set()
-	cards_requested = set()
+	cards_requested = []
+	card_number_requested = set()
+	camels_selected = 0  # stop player if they try to give up camels that would push his card count over 7
 	print()
 	display_cards(market)
 	print()
@@ -239,12 +255,13 @@ def take_several_goods(player, market, deck):
 			print("Please enter 1, 2, 3, 4, or 5")
 		else:
 			if market[int(answer) - 1] == "Camel":
-				print("You can only take goods when exchanging, not camels.")
+				print("You can only take goods when exchanging, not camels. Please enter another valid good.")
 			else:
-				if (int(answer) - 1) in cards_requested:
-					print("You've already picked that card.")
+				if int(answer) in card_number_requested:
+					print("You've already picked that card. Please enter another valid good.")
 				else:
-					cards_requested.add(market[int(answer) - 1])
+					cards_requested.append(market[int(answer) - 1])
+					card_number_requested.add(int(answer))
 
 	print()
 	display_cards(player.hand)
@@ -263,22 +280,36 @@ def take_several_goods(player, market, deck):
 			break
 		if answer not in cards_in_hand:
 			print("Please enter a valid number.")
+		elif player.hand[int(answer) - 1] == "Camel":
+			camels_selected += 1
+			if player.num_non_camel_cards + camels_selected > 7:
+				print("You cannot exchange camels and then exceed the maximum number of goods limit of 7")
+				print("Please try the exchange again.")
+				take_several_goods(player, market, deck)
+			else:
+				cards_given_up.append(player.hand[int(answer) - 1])
+				card_number_given.add(answer)
 		elif answer in card_number_given:
 			print("You already selected that number, please try again.")
 		else:
+			cards_given_up.append(player.hand[int(answer) - 1])
 			card_number_given.add(answer)
-			cards_given_up.add(player.hand[int(answer) - 1])
 
 	# Validate that at least 2 cards were traded and the amount given up and
 	# requested matches
+	print(cards_given_up)
+	print(cards_requested)
 	print(len(cards_given_up))
 	print(len(cards_requested))
 
 	if len(cards_given_up) <= 1 or len(cards_requested) <= 1:
+		print()
 		print("You must trade at least 2 cards when you take several goods.")
 		take_several_goods(player, market, deck)
 	elif len(cards_given_up) != len(cards_requested):
-		print("You have request and give up the same amount of cards.")
+		print()
+		print("You must request and give up the same amount of cards. Please try again.")
+		take_several_goods(player, market, deck)
 	else:
 		# Remove items given up from hand and add them to the market
 		for item in cards_given_up:
@@ -289,6 +320,15 @@ def take_several_goods(player, market, deck):
 		for item in cards_requested:
 			market.remove(item)
 			player.hand.append(item)
+
+		# increment player good hand count if player validly gave up camels in exchange for goods.
+		for camel in range(camels_selected):
+			player.num_non_camel_cards += 1
+
+		exchanged_string = ", ".join(cards_requested)
+		taken_string = ", ".join(cards_given_up)
+
+		player.actions.append(player.name + " exchanged " + taken_string + " for " + exchanged_string + ".")
 
 
 def take_single_good(player, market, deck):
@@ -306,38 +346,46 @@ def take_single_good(player, market, deck):
 	answer = input()
 	if answer == "1":
 		if market[0] == "Camel":
+			print()
 			print("You must take all camels")
 			take_single_good(player, market, deck)
 		else:
 			player.num_non_camel_cards += 1
 			player.hand.append(market[0])
+			player.actions.append(player.name + " took a single " + market[0])
 			market.pop(0)
 			draw(deck, market)
 	elif answer == "2":
 		if market[1] == "Camel":
+			print()
 			print("You must take all camels")
 			take_single_good(player, market, deck)
 		else:
 			player.num_non_camel_cards += 1
 			player.hand.append(market[1])
+			player.actions.append(player.name + " took a single " + market[1])
 			market.pop(1)
 			draw(deck, market)
 	elif answer == "3":
 		if market[2] == "Camel":
+			print()
 			print("You must take all camels")
 			take_single_good(player, market, deck)
 		else:
 			player.num_non_camel_cards += 1
 			player.hand.append(market[2])
+			player.actions.append(player.name + " took a single " + market[2])
 			market.pop(2)
 			draw(deck, market)
 	elif answer == "4":
 		if market[3] == "Camel":
+			print()
 			print("You must take all camels")
 			take_single_good(player, market, deck)
 		else:
 			player.num_non_camel_cards += 1
 			player.hand.append(market[3])
+			player.actions.append(player.name + " took a single " + market[3])
 			market.pop(3)
 			draw(deck, market)
 	elif answer == "5":
@@ -347,6 +395,7 @@ def take_single_good(player, market, deck):
 		else:
 			player.num_non_camel_cards += 1
 			player.hand.append(market[4])
+			player.actions.append(player.name + " took a single " + market[4])
 			market.pop(4)
 			draw(deck, market)
 	else:
@@ -360,10 +409,11 @@ def take_camels(player, market, deck):
 		if card == "Camel":
 			player.hand.append("Camel")
 			count += 1
-
-	for camel in range(count):
-		market.remove("Camel")
-		draw(deck, market)  # Draw new cards for all remove camels draw()
+	if count > 0:
+		for camel in range(count):
+			market.remove("Camel")
+			draw(deck, market)  # Draw new cards for all remove camels draw()
+		player.actions.append(player.name + " took " + str(count) + " camels.")
 
 
 # Sell Cards
@@ -396,17 +446,28 @@ def sell_cards(player, tokens):
 				if card == answer:
 					cards_sold.append(card)
 			for i in range(len(cards_sold)):
-				player.points += tokens[answer].pop(0)
-				player.hand.remove(answer)
-				player.num_non_camel_cards -= 1
+				if len(tokens[answer]) > 0:
+					player.points += tokens[answer].pop(0)
+					player.hand.remove(answer)
+					player.num_non_camel_cards -= 1
+				else:
+					player.hand.remove(answer)
+					player.num_non_camel_cards -= 1
+					if answer not in SOLD_OUT_GOODS:
+						SOLD_OUT_GOODS.add(answer)
 
 		# awarding bonus tokens for selling 3, 4, or 5 cards
 		if len(cards_sold) == 3:
 			player.points += tokens["card_three"].pop(0)
+			player.actions.append(player.name + " sold " + str(len(cards_sold)) + " " + answer + " with a 3 bonus.")
 		elif len(cards_sold) == 4:
 			player.points += tokens["card_four"].pop(0)
+			player.actions.append(player.name + " sold " + str(len(cards_sold)) + " " + answer + " with a 4 bonus.")
 		elif len(cards_sold) == 5:
 			player.points += tokens["card_five"].pop(0)
+			player.actions.append(player.name + " sold " + str(len(cards_sold)) + " " + answer + " with a 5 bonus.")
+		else:
+			player.actions.append(player.name + " sold " + str(len(cards_sold)) + " " + answer + ".")
 
 
 # Handle Turns
@@ -429,9 +490,13 @@ if __name__ == "__main__":
 	deal_hand(game_deck, p1, p2)
 	market = create_market(game_deck)
 
-	while SOLD_OUT_GOODS != 3 and len(game_deck) != 0:
-		display_options(p1, market, game_deck, tokens)
-		display_options(p2, market, game_deck, tokens)
+	while len(SOLD_OUT_GOODS) != 3 and len(game_deck) != 0:
+		if len(p1.actions) == 0:
+			display_options(p1, market, game_deck, tokens)
+			display_options(p2, market, game_deck, tokens, p1)
+		else:
+			display_options(p1, market, game_deck, tokens, p2)
+			display_options(p2, market, game_deck, tokens, p1)
 
 	if p1.points > p2.points:
 		print(p1.name + " wins!")
